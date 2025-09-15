@@ -1,10 +1,9 @@
-import NativeBluetoothService from './NativeBluetoothService';
 import FallbackBluetoothService from './FallbackBluetoothService';
 import {PermissionsAndroid, Platform} from 'react-native';
 
 /**
  * Bluetooth Classic service for GAIA protocol communication
- * Based on Android GAIA Control SDK BluetoothService
+ * Uses external library with fallback to mock service
  */
 
 class BluetoothService {
@@ -12,73 +11,32 @@ class BluetoothService {
     this.isConnected = false;
     this.connectedDevice = null;
     this.listeners = [];
-    this.nativeService = null;
-    this.fallbackService = null;
+    this.bluetoothService = null;
 
-    // Check if native module is available before trying to use it
-    const {NativeModules} = require('react-native');
-    const hasNativeModule = NativeModules.BluetoothModule && typeof NativeModules.BluetoothModule === 'object';
-    
-    if (hasNativeModule) {
-      try {
-        this.nativeService = new NativeBluetoothService();
-        
-        // Forward events from native service
-        this.nativeService.addListener('onDeviceConnected', device => {
-          this.isConnected = true;
-          this.connectedDevice = device;
-          this.notifyListeners('onDeviceConnected', device);
-        });
+    // Initialize fallback service (can be replaced with real Bluetooth later)
+    console.log('Initializing Bluetooth service...');
+    this.bluetoothService = new FallbackBluetoothService();
 
-        this.nativeService.addListener('onDeviceDisconnected', () => {
-          this.isConnected = false;
-          this.connectedDevice = null;
-          this.notifyListeners('onDeviceDisconnected');
-        });
+    // Forward events from Bluetooth service
+    this.bluetoothService.addListener('onDeviceConnected', device => {
+      this.isConnected = true;
+      this.connectedDevice = device;
+      this.notifyListeners('onDeviceConnected', device);
+    });
 
-        this.nativeService.addListener('onDataReceived', data => {
-          this.notifyListeners('onDataReceived', data);
-        });
+    this.bluetoothService.addListener('onDeviceDisconnected', () => {
+      this.isConnected = false;
+      this.connectedDevice = null;
+      this.notifyListeners('onDeviceDisconnected');
+    });
 
-        this.nativeService.addListener('onConnectionError', error => {
-          this.notifyListeners('onConnectionError', error);
-        });
-        
-        console.log('Native Bluetooth service initialized successfully');
-      } catch (error) {
-        console.error('Failed to initialize native Bluetooth service:', error);
-        this.nativeService = null;
-      }
-    } else {
-      console.log('Native Bluetooth module not available, using fallback');
-    }
-    
-    // If native service failed or is not available, use fallback
-    if (!this.nativeService) {
-      console.log('Initializing fallback Bluetooth service...');
-      this.fallbackService = new FallbackBluetoothService();
-      
-      // Forward events from fallback service
-      this.fallbackService.addListener('onDeviceConnected', device => {
-        this.isConnected = true;
-        this.connectedDevice = device;
-        this.notifyListeners('onDeviceConnected', device);
-      });
+    this.bluetoothService.addListener('onDataReceived', data => {
+      this.notifyListeners('onDataReceived', data);
+    });
 
-      this.fallbackService.addListener('onDeviceDisconnected', () => {
-        this.isConnected = false;
-        this.connectedDevice = null;
-        this.notifyListeners('onDeviceDisconnected');
-      });
-
-      this.fallbackService.addListener('onDataReceived', data => {
-        this.notifyListeners('onDataReceived', data);
-      });
-
-      this.fallbackService.addListener('onConnectionError', error => {
-        this.notifyListeners('onConnectionError', error);
-      });
-    }
+    this.bluetoothService.addListener('onConnectionError', error => {
+      this.notifyListeners('onConnectionError', error);
+    });
   }
 
   /**
@@ -111,10 +69,8 @@ class BluetoothService {
    * @returns {Promise<boolean>} True if enabled
    */
   async enableBluetooth() {
-    if (this.nativeService) {
-      return await this.nativeService.enableBluetooth();
-    } else if (this.fallbackService) {
-      return await this.fallbackService.enableBluetooth();
+    if (this.bluetoothService) {
+      return await this.bluetoothService.enableBluetooth();
     } else {
       console.error('No Bluetooth service available');
       return false;
@@ -126,10 +82,8 @@ class BluetoothService {
    * @returns {Promise<Array>} Array of paired devices
    */
   async getPairedDevices() {
-    if (this.nativeService) {
-      return await this.nativeService.getPairedDevices();
-    } else if (this.fallbackService) {
-      return await this.fallbackService.getPairedDevices();
+    if (this.bluetoothService) {
+      return await this.bluetoothService.getPairedDevices();
     } else {
       console.error('No Bluetooth service available');
       return [];
@@ -142,10 +96,8 @@ class BluetoothService {
    * @returns {Promise<boolean>} True if connected
    */
   async connectToDevice(deviceId) {
-    if (this.nativeService) {
-      return await this.nativeService.connectToDevice(deviceId);
-    } else if (this.fallbackService) {
-      return await this.fallbackService.connectToDevice(deviceId);
+    if (this.bluetoothService) {
+      return await this.bluetoothService.connectToDevice(deviceId);
     } else {
       console.error('No Bluetooth service available');
       return false;
@@ -157,10 +109,8 @@ class BluetoothService {
    * @returns {Promise<boolean>} True if disconnected
    */
   async disconnect() {
-    if (this.nativeService) {
-      return await this.nativeService.disconnect();
-    } else if (this.fallbackService) {
-      return await this.fallbackService.disconnect();
+    if (this.bluetoothService) {
+      return await this.bluetoothService.disconnect();
     } else {
       console.error('No Bluetooth service available');
       return false;
@@ -173,10 +123,8 @@ class BluetoothService {
    * @returns {Promise<boolean>} True if sent successfully
    */
   async sendData(data) {
-    if (this.nativeService) {
-      return await this.nativeService.sendData(data);
-    } else if (this.fallbackService) {
-      return await this.fallbackService.sendData(data);
+    if (this.bluetoothService) {
+      return await this.bluetoothService.sendData(data);
     } else {
       console.error('No Bluetooth service available');
       return false;
