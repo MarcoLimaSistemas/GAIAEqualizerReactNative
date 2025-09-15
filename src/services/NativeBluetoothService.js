@@ -1,7 +1,23 @@
 import {NativeModules, NativeEventEmitter} from 'react-native';
 
 const {BluetoothModule} = NativeModules;
-const bluetoothEventEmitter = new NativeEventEmitter(BluetoothModule);
+
+// Check if BluetoothModule is available
+if (!BluetoothModule) {
+  console.error(
+    'BluetoothModule not found. Make sure the native module is properly linked.',
+  );
+}
+
+let bluetoothEventEmitter = null;
+try {
+  if (BluetoothModule) {
+    bluetoothEventEmitter = new NativeEventEmitter(BluetoothModule);
+  }
+} catch (error) {
+  console.error('Failed to create NativeEventEmitter:', error);
+  bluetoothEventEmitter = null;
+}
 
 /**
  * Native Bluetooth Classic service for GAIA protocol communication
@@ -13,17 +29,24 @@ class NativeBluetoothService {
     this.isConnected = false;
     this.connectedDevice = null;
     this.listeners = [];
-    
+
     // Set up event listeners
     this.setupEventListeners();
   }
 
   setupEventListeners() {
-    bluetoothEventEmitter.addListener('onDataReceived', (data) => {
+    if (!bluetoothEventEmitter) {
+      console.error(
+        'BluetoothEventEmitter not available. Native module not linked.',
+      );
+      return;
+    }
+
+    bluetoothEventEmitter.addListener('onDataReceived', data => {
       this.handleIncomingData(data);
     });
 
-    bluetoothEventEmitter.addListener('onConnectionError', (error) => {
+    bluetoothEventEmitter.addListener('onConnectionError', error => {
       console.error('Bluetooth connection error:', error);
       this.notifyListeners('onConnectionError', error);
     });
@@ -43,6 +66,11 @@ class NativeBluetoothService {
    * @returns {Promise<boolean>} True if enabled
    */
   async enableBluetooth() {
+    if (!BluetoothModule) {
+      console.error('BluetoothModule not available');
+      return false;
+    }
+
     try {
       const enabled = await BluetoothModule.isEnabled();
       if (!enabled) {
@@ -60,6 +88,11 @@ class NativeBluetoothService {
    * @returns {Promise<Array>} Array of paired devices
    */
   async getPairedDevices() {
+    if (!BluetoothModule) {
+      console.error('BluetoothModule not available');
+      return [];
+    }
+
     try {
       const devices = await BluetoothModule.getPairedDevices();
       return devices;
@@ -75,14 +108,19 @@ class NativeBluetoothService {
    * @returns {Promise<boolean>} True if connected
    */
   async connectToDevice(deviceId) {
+    if (!BluetoothModule) {
+      console.error('BluetoothModule not available');
+      return false;
+    }
+
     try {
       console.log(`Connecting to device: ${deviceId}`);
-      
+
       const device = await BluetoothModule.connect(deviceId);
-      
+
       this.isConnected = true;
       this.connectedDevice = device;
-      
+
       this.notifyListeners('onDeviceConnected', device);
       return true;
     } catch (error) {
@@ -97,13 +135,18 @@ class NativeBluetoothService {
    * @returns {Promise<boolean>} True if disconnected
    */
   async disconnect() {
+    if (!BluetoothModule) {
+      console.error('BluetoothModule not available');
+      return false;
+    }
+
     try {
       console.log('Disconnecting from device');
       await BluetoothModule.disconnect();
-      
+
       this.isConnected = false;
       this.connectedDevice = null;
-      
+
       this.notifyListeners('onDeviceDisconnected');
       return true;
     } catch (error) {
@@ -118,17 +161,29 @@ class NativeBluetoothService {
    * @returns {Promise<boolean>} True if sent successfully
    */
   async sendData(data) {
+    if (!BluetoothModule) {
+      console.error('BluetoothModule not available');
+      return false;
+    }
+
     try {
       if (!this.isConnected) {
         throw new Error('Not connected to any device');
       }
-      
-      console.log('Sending GAIA data:', Array.from(data).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '));
-      
+
+      console.log(
+        'Sending GAIA data:',
+        Array.from(data)
+          .map(b => `0x${b.toString(16).padStart(2, '0')}`)
+          .join(' '),
+      );
+
       // Convert Uint8Array to string for native transmission
-      const dataString = Array.from(data).map(byte => String.fromCharCode(byte)).join('');
+      const dataString = Array.from(data)
+        .map(byte => String.fromCharCode(byte))
+        .join('');
       await BluetoothModule.write(dataString);
-      
+
       return true;
     } catch (error) {
       console.error('Error sending data:', error);
@@ -147,9 +202,14 @@ class NativeBluetoothService {
       for (let i = 0; i < data.length; i++) {
         dataArray[i] = data.charCodeAt(i);
       }
-      
-      console.log('Received GAIA data:', Array.from(dataArray).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '));
-      
+
+      console.log(
+        'Received GAIA data:',
+        Array.from(dataArray)
+          .map(b => `0x${b.toString(16).padStart(2, '0')}`)
+          .join(' '),
+      );
+
       this.notifyListeners('onDataReceived', dataArray);
     } catch (error) {
       console.error('Error handling incoming data:', error);
@@ -172,7 +232,7 @@ class NativeBluetoothService {
    */
   removeListener(event, callback) {
     this.listeners = this.listeners.filter(
-      listener => !(listener.event === event && listener.callback === callback)
+      listener => !(listener.event === event && listener.callback === callback),
     );
   }
 
