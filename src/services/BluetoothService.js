@@ -15,34 +15,46 @@ class BluetoothService {
     this.nativeService = null;
     this.fallbackService = null;
 
-    try {
-      this.nativeService = new NativeBluetoothService();
-      
-      // Forward events from native service
-      this.nativeService.addListener('onDeviceConnected', device => {
-        this.isConnected = true;
-        this.connectedDevice = device;
-        this.notifyListeners('onDeviceConnected', device);
-      });
+    // Check if native module is available before trying to use it
+    const {NativeModules} = require('react-native');
+    const hasNativeModule = NativeModules.BluetoothModule && typeof NativeModules.BluetoothModule === 'object';
+    
+    if (hasNativeModule) {
+      try {
+        this.nativeService = new NativeBluetoothService();
+        
+        // Forward events from native service
+        this.nativeService.addListener('onDeviceConnected', device => {
+          this.isConnected = true;
+          this.connectedDevice = device;
+          this.notifyListeners('onDeviceConnected', device);
+        });
 
-      this.nativeService.addListener('onDeviceDisconnected', () => {
-        this.isConnected = false;
-        this.connectedDevice = null;
-        this.notifyListeners('onDeviceDisconnected');
-      });
+        this.nativeService.addListener('onDeviceDisconnected', () => {
+          this.isConnected = false;
+          this.connectedDevice = null;
+          this.notifyListeners('onDeviceDisconnected');
+        });
 
-      this.nativeService.addListener('onDataReceived', data => {
-        this.notifyListeners('onDataReceived', data);
-      });
+        this.nativeService.addListener('onDataReceived', data => {
+          this.notifyListeners('onDataReceived', data);
+        });
 
-      this.nativeService.addListener('onConnectionError', error => {
-        this.notifyListeners('onConnectionError', error);
-      });
-    } catch (error) {
-      console.error('Failed to initialize native Bluetooth service:', error);
-      this.nativeService = null;
-      
-      // Initialize fallback service
+        this.nativeService.addListener('onConnectionError', error => {
+          this.notifyListeners('onConnectionError', error);
+        });
+        
+        console.log('Native Bluetooth service initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize native Bluetooth service:', error);
+        this.nativeService = null;
+      }
+    } else {
+      console.log('Native Bluetooth module not available, using fallback');
+    }
+    
+    // If native service failed or is not available, use fallback
+    if (!this.nativeService) {
       console.log('Initializing fallback Bluetooth service...');
       this.fallbackService = new FallbackBluetoothService();
       

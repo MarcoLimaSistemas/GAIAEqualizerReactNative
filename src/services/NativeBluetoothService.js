@@ -10,13 +10,17 @@ if (!BluetoothModule) {
 }
 
 let bluetoothEventEmitter = null;
-try {
-  if (BluetoothModule) {
+
+// Only create NativeEventEmitter if BluetoothModule is available and valid
+if (BluetoothModule && typeof BluetoothModule === 'object') {
+  try {
     bluetoothEventEmitter = new NativeEventEmitter(BluetoothModule);
+  } catch (error) {
+    console.error('Failed to create NativeEventEmitter:', error);
+    bluetoothEventEmitter = null;
   }
-} catch (error) {
-  console.error('Failed to create NativeEventEmitter:', error);
-  bluetoothEventEmitter = null;
+} else {
+  console.log('BluetoothModule not available, using fallback mode');
 }
 
 /**
