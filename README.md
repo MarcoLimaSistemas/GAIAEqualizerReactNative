@@ -1,79 +1,191 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# GAIA Equalizer React Native
 
-# Getting Started
+Este é um aplicativo React Native que implementa um equalizador personalizado usando o protocolo GAIA da Qualcomm, baseado no SDK Android GAIA Control 3.4.0.52.
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+## Funcionalidades
 
-## Step 1: Start the Metro Server
+- **Conexão Bluetooth Classic**: Conecta-se a dispositivos GAIA via Bluetooth Classic
+- **Equalizador Personalizado**: Interface completa para configuração de equalizador com:
+  - 5 bandas configuráveis (band 1-5)
+  - Master Gain global
+  - 13 tipos de filtros diferentes:
+    - BYPASS, LPF1, LPF2, HPF1, HPF2, APF1, APF2
+    - LS1, LS2, HS1, HS2, Tilt1, Tilt2, PEQ
+  - Parâmetros ajustáveis por filtro:
+    - Frequência (Frequency)
+    - Ganho (Gain)
+    - Qualidade (Quality)
+- **Protocolo GAIA**: Implementação completa dos comandos GAIA para equalização
+- **Interface Intuitiva**: Interface baseada no design do aplicativo Android original
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+## Estrutura do Projeto
 
-To start Metro, run the following command from the _root_ of your React Native project:
-
-```bash
-# using npm
-npm start
-
-# OR using Yarn
-yarn start
+```
+src/
+├── components/
+│   ├── Bluetooth/
+│   │   └── BluetoothConnectionScreen.js    # Tela de conexão Bluetooth
+│   └── Equalizer/
+│       ├── EqualizerScreen.js              # Tela principal do equalizador
+│       ├── EqualizerSlider.js              # Componente de slider
+│       ├── FilterButton.js                 # Botão de seleção de filtro
+│       └── BandButton.js                   # Botão de seleção de banda
+├── services/
+│   ├── BluetoothService.js                 # Serviço de Bluetooth Classic
+│   └── GAIAProtocol.js                     # Implementação do protocolo GAIA
+├── models/
+│   └── Equalizer/
+│       ├── Bank.js                         # Classe Bank (banco de equalização)
+│       ├── Band.js                         # Classe Band (banda individual)
+│       ├── Parameter.js                    # Classe base para parâmetros
+│       ├── Frequency.js                    # Parâmetro de frequência
+│       ├── Gain.js                         # Parâmetro de ganho
+│       ├── Quality.js                      # Parâmetro de qualidade
+│       ├── MasterGain.js                   # Parâmetro de master gain
+│       └── Filter.js                       # Definições de filtros
+├── constants/
+│   └── GAIACommands.js                     # Constantes do protocolo GAIA
+└── utils/
+    └── GAIACommands.js                     # Utilitários para comandos GAIA
 ```
 
-## Step 2: Start your Application
+## Comandos GAIA Implementados
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+### Equalizador
 
-### For Android
+- `COMMAND_SET_EQ_CONTROL` (0x0214) - Define preset do equalizador
+- `COMMAND_GET_EQ_CONTROL` (0x0294) - Obtém preset atual
+- `COMMAND_SET_EQ_PARAMETER` (0x021A) - Define parâmetro de equalização
+- `COMMAND_GET_EQ_PARAMETER` (0x029A) - Obtém parâmetro de equalização
+
+### Parâmetros Suportados
+
+- **Master Gain**: Ganho global do equalizador (-36dB a +12dB)
+- **Filtros por Banda**:
+  - **Frequência**: 0.3Hz a 20kHz (dependendo do filtro)
+  - **Ganho**: -36dB a +12dB (dependendo do filtro)
+  - **Qualidade**: 0.25 a 8.0 (dependendo do filtro)
+
+## Tipos de Filtros
+
+| Filtro | Frequência  | Ganho         | Qualidade | Descrição            |
+| ------ | ----------- | ------------- | --------- | -------------------- |
+| BYPASS | -           | -             | -         | Sem processamento    |
+| LPF1   | 0.3Hz-20kHz | -             | -         | Low Pass 1ª ordem    |
+| LPF2   | 40Hz-20kHz  | -             | 0.25-2.0  | Low Pass 2ª ordem    |
+| HPF1   | 0.3Hz-20kHz | -             | -         | High Pass 1ª ordem   |
+| HPF2   | 40Hz-20kHz  | -             | 0.25-2.0  | High Pass 2ª ordem   |
+| APF1   | 0.3Hz-20kHz | -             | -         | All Pass 1ª ordem    |
+| APF2   | 40Hz-20kHz  | -             | 0.25-2.0  | All Pass 2ª ordem    |
+| LS1    | 20Hz-20kHz  | -12dB a +12dB | -         | Low Shelf 1ª ordem   |
+| LS2    | 40Hz-20kHz  | -12dB a +12dB | 0.25-2.0  | Low Shelf 2ª ordem   |
+| HS1    | 20Hz-20kHz  | -12dB a +12dB | -         | High Shelf 1ª ordem  |
+| HS2    | 40Hz-20kHz  | -12dB a +12dB | 0.25-2.0  | High Shelf 2ª ordem  |
+| Tilt1  | 20Hz-20kHz  | -12dB a +12dB | -         | Tilt 1ª ordem        |
+| Tilt2  | 40Hz-20kHz  | -12dB a +12dB | 0.25-2.0  | Tilt 2ª ordem        |
+| PEQ    | 20Hz-20kHz  | -36dB a +12dB | 0.25-8.0  | Parametric Equalizer |
+
+## Instalação
+
+### Pré-requisitos
+
+- Node.js (versão 16 ou superior)
+- React Native CLI
+- Android Studio (para Android)
+- Xcode (para iOS)
+
+### Instalação Rápida
+
+1. **Instalar dependências:**
 
 ```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
+npm install
 ```
 
-### For iOS
+2. **Compilar e executar (Android):**
 
 ```bash
-# using npm
-npm run ios
+# Opção 1: Usar o script de build
+./build.sh
 
-# OR using Yarn
-yarn ios
+# Opção 2: Comando manual
+npx react-native run-android
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+3. **Para iOS:**
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+```bash
+cd ios && pod install && cd ..
+npx react-native run-ios
+```
 
-## Step 3: Modifying your App
+### Scripts Disponíveis
 
-Now that you have successfully run the app, let's modify it.
+- `npm run android` - Executa no Android
+- `npm run ios` - Executa no iOS
+- `npm run start` - Inicia o Metro bundler
+- `npm run lint` - Verifica erros de código
+- `npm run lint:fix` - Corrige erros automaticamente
+- `npm test` - Executa testes
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+### Build de Produção
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+```bash
+# Android
+npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
-## Congratulations! :tada:
+# iOS
+npx react-native bundle --platform ios --dev false --entry-file index.js --bundle-output ios/main.jsbundle
+```
 
-You've successfully run and modified your React Native App. :partying_face:
+## Dependências
 
-### Now what?
+- `react-native-bluetooth-serial`: Comunicação Bluetooth Classic
+- `react-native-permissions`: Gerenciamento de permissões
+- `@react-native-community/slider`: Componente de slider
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
+## Uso
 
-# Troubleshooting
+1. **Conectar Dispositivo**:
 
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+   - Abra o aplicativo
+   - Certifique-se de que o Bluetooth está habilitado
+   - Selecione um dispositivo GAIA pareado da lista
+   - Aguarde a conexão ser estabelecida
 
-# Learn More
+2. **Configurar Equalizador**:
 
-To learn more about React Native, take a look at the following resources:
+   - Selecione uma banda (1-5) para configurar
+   - Escolha o tipo de filtro desejado
+   - Ajuste os parâmetros disponíveis (frequência, ganho, qualidade)
+   - Configure o master gain global
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+3. **Salvar Configurações**:
+   - As configurações são aplicadas automaticamente ao dispositivo
+   - Use o botão "Refresh values" para recarregar as configurações atuais
+
+## Regras de Negócio
+
+- **Estado Incorreto**: O dispositivo deve estar reproduzindo áudio para usar comandos de equalização
+- **Recálculo em Tempo Real**: Apenas aplicado quando o preset customizado (bank 1) está selecionado
+- **Validação de Parâmetros**: Todos os parâmetros são validados conforme os limites do filtro selecionado
+- **Sincronização**: O estado da interface é sempre sincronizado com o dispositivo
+
+## Compatibilidade
+
+- **Android**: API 23+ (Android 6.0+)
+- **iOS**: iOS 11.0+
+- **Dispositivos GAIA**: Qualcomm GAIA v3.4+
+
+## Baseado em
+
+Este projeto é uma implementação React Native fiel do SDK Android GAIA Control 3.4.0.52, mantendo:
+
+- Mesma estrutura de comandos GAIA
+- Mesmos parâmetros e limites
+- Mesma lógica de negócio
+- Interface similar ao aplicativo original
+
+## Licença
+
+Baseado no SDK Qualcomm GAIA Control Android 3.4.0.52
