@@ -182,7 +182,7 @@ function validateEqualizerParameters(band, filter, frequency, gain, quality) {
     }
   } else if (frequency !== 0) {
     results.warnings.push(
-      `Frequency should be 0 for this filter (not configurable)`,
+      'Frequency should be 0 for this filter (not configurable)',
     );
   }
 
@@ -196,7 +196,7 @@ function validateEqualizerParameters(band, filter, frequency, gain, quality) {
     }
   } else if (gain !== 0) {
     results.warnings.push(
-      `Gain should be 0 for this filter (not configurable)`,
+      'Gain should be 0 for this filter (not configurable)',
     );
   }
 
@@ -210,7 +210,7 @@ function validateEqualizerParameters(band, filter, frequency, gain, quality) {
     }
   } else if (quality !== 0) {
     results.warnings.push(
-      `Quality should be 0 for this filter (not configurable)`,
+      'Quality should be 0 for this filter (not configurable)',
     );
   }
 

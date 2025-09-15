@@ -1,16 +1,38 @@
-import BluetoothSerial from 'react-native-bluetooth-serial';
+import NativeBluetoothService from './NativeBluetoothService';
 import {PermissionsAndroid, Platform} from 'react-native';
 
 /**
  * Bluetooth Classic service for GAIA protocol communication
  * Based on Android GAIA Control SDK BluetoothService
  */
-export class BluetoothService {
+
+class BluetoothService {
   constructor() {
+    this.nativeService = new NativeBluetoothService();
     this.isConnected = false;
-    this.isGaiaReady = false;
     this.connectedDevice = null;
     this.listeners = [];
+    
+    // Forward events from native service
+    this.nativeService.addListener('onDeviceConnected', (device) => {
+      this.isConnected = true;
+      this.connectedDevice = device;
+      this.notifyListeners('onDeviceConnected', device);
+    });
+    
+    this.nativeService.addListener('onDeviceDisconnected', () => {
+      this.isConnected = false;
+      this.connectedDevice = null;
+      this.notifyListeners('onDeviceDisconnected');
+    });
+    
+    this.nativeService.addListener('onDataReceived', (data) => {
+      this.notifyListeners('onDataReceived', data);
+    });
+    
+    this.nativeService.addListener('onConnectionError', (error) => {
+      this.notifyListeners('onConnectionError', error);
+    });
   }
 
   /**
@@ -43,16 +65,7 @@ export class BluetoothService {
    * @returns {Promise<boolean>} True if enabled
    */
   async enableBluetooth() {
-    try {
-      const enabled = await BluetoothSerial.isEnabled();
-      if (!enabled) {
-        await BluetoothSerial.enable();
-      }
-      return true;
-    } catch (error) {
-      console.error('Error enabling Bluetooth:', error);
-      return false;
-    }
+    return await this.nativeService.enableBluetooth();
   }
 
   /**
@@ -60,52 +73,24 @@ export class BluetoothService {
    * @returns {Promise<Array>} Array of paired devices
    */
   async getPairedDevices() {
-    try {
-      const devices = await BluetoothSerial.list();
-      return devices.filter(device => device.paired);
-    } catch (error) {
-      console.error('Error getting paired devices:', error);
-      return [];
-    }
+    return await this.nativeService.getPairedDevices();
   }
 
   /**
-   * Connect to a device
+   * Connect to device
    * @param {string} deviceId - Device ID to connect to
    * @returns {Promise<boolean>} True if connected
    */
-  async connect(deviceId) {
-    try {
-      await BluetoothSerial.connect(deviceId);
-      this.isConnected = true;
-      this.connectedDevice = deviceId;
-      this.notifyListeners('CONNECTION_STATE_HAS_CHANGED', 'CONNECTED');
-      return true;
-    } catch (error) {
-      console.error('Error connecting to device:', error);
-      this.isConnected = false;
-      this.connectedDevice = null;
-      this.notifyListeners('CONNECTION_STATE_HAS_CHANGED', 'DISCONNECTED');
-      return false;
-    }
+  async connectToDevice(deviceId) {
+    return await this.nativeService.connectToDevice(deviceId);
   }
 
   /**
-   * Disconnect from current device
+   * Disconnect from device
    * @returns {Promise<boolean>} True if disconnected
    */
   async disconnect() {
-    try {
-      await BluetoothSerial.disconnect();
-      this.isConnected = false;
-      this.isGaiaReady = false;
-      this.connectedDevice = null;
-      this.notifyListeners('CONNECTION_STATE_HAS_CHANGED', 'DISCONNECTED');
-      return true;
-    } catch (error) {
-      console.error('Error disconnecting:', error);
-      return false;
-    }
+    return await this.nativeService.disconnect();
   }
 
   /**
@@ -114,43 +99,7 @@ export class BluetoothService {
    * @returns {Promise<boolean>} True if sent successfully
    */
   async sendData(data) {
-    try {
-      if (!this.isConnected) {
-        console.warn('Not connected to any device');
-        return false;
-      }
-
-      await BluetoothSerial.write(data);
-      return true;
-    } catch (error) {
-      console.error('Error sending data:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Start listening for incoming data
-   */
-  startListening() {
-    BluetoothSerial.on('bluetoothSerialData', data => {
-      this.handleIncomingData(data);
-    });
-  }
-
-  /**
-   * Stop listening for incoming data
-   */
-  stopListening() {
-    BluetoothSerial.removeAllListeners('bluetoothSerialData');
-  }
-
-  /**
-   * Handle incoming data from Bluetooth
-   * @param {Uint8Array} data - Incoming data
-   */
-  handleIncomingData(data) {
-    // Process GAIA packet
-    this.notifyListeners('GAIA_PACKET', data);
+    return await this.nativeService.sendData(data);
   }
 
   /**
@@ -169,7 +118,7 @@ export class BluetoothService {
    */
   removeListener(event, callback) {
     this.listeners = this.listeners.filter(
-      listener => !(listener.event === event && listener.callback === callback),
+      listener => !(listener.event === event && listener.callback === callback)
     );
   }
 
@@ -179,45 +128,26 @@ export class BluetoothService {
    * @param {*} data - Event data
    */
   notifyListeners(event, data) {
-    this.listeners.forEach(listener => {
-      if (listener.event === event) {
-        listener.callback(data);
-      }
-    });
+    this.listeners
+      .filter(listener => listener.event === event)
+      .forEach(listener => listener.callback(data));
   }
 
   /**
-   * Check if connected to a device
+   * Get connection status
    * @returns {boolean} True if connected
    */
-  isConnectedToDevice() {
+  getConnectionStatus() {
     return this.isConnected;
   }
 
   /**
-   * Check if GAIA protocol is ready
-   * @returns {boolean} True if ready
-   */
-  isGaiaProtocolReady() {
-    return this.isGaiaReady;
-  }
-
-  /**
-   * Set GAIA protocol ready state
-   * @param {boolean} ready - Ready state
-   */
-  setGaiaReady(ready) {
-    this.isGaiaReady = ready;
-    if (ready) {
-      this.notifyListeners('GAIA_READY', null);
-    }
-  }
-
-  /**
-   * Get connected device ID
-   * @returns {string|null} Connected device ID
+   * Get connected device info
+   * @returns {Object|null} Connected device info
    */
   getConnectedDevice() {
     return this.connectedDevice;
   }
 }
+
+export default BluetoothService;
